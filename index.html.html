@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>病房排班自動化系統</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.22.20/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif; }
+  ::-webkit-scrollbar { height: 10px; width: 10px; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }
+  @keyframes pulseBg { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+  .animate-pulse-custom { animation: pulseBg 1.6s ease-in-out infinite; }
+  .print-only { display: none; }
+  @media print {
+    @page { size: A4 landscape; margin: 8mm; }
+    body * { visibility: hidden; }
+    .print-only, .print-only * { visibility: visible; }
+    .print-only { display: block; position: absolute; left: 0; top: 0; width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="env,react">
+const { useState, useMemo, useCallback } = React;
+
+/* ---------- tiny inline icon set (no external icon library needed) ---------- */
+const Icon = ({ children, size = 16, ...props }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    {children}
+  </svg>
+);
+const PlayIcon = (p) => <Icon {...p}><polygon points="6 3 20 12 6 21 6 3"></polygon></Icon>;
+const DownloadIcon = (p) => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></Icon>;
+const PrinterIcon = (p) => <Icon {...p}><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></Icon>;
+const UploadIcon = (p) => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></Icon>;
+const GripIcon = (p) => <Icon {...p}><circle cx="9" cy="6" r="1.2" fill="currentColor"></circle><circle cx="9" cy="12" r="1.2" fill="currentColor"></circle><circle cx="9" cy="18" r="1.2" fill="currentColor"></circle><circle cx="15" cy="6" r="1.2" fill="currentColor"></circle><circle cx="15" cy="12" r="1.2" fill="currentColor"></circle><circle cx="15" cy="18" r="1.2" fill="currentColor"></circle></Icon>;
+const PlusIcon = (p) => <Icon {...p}><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></Icon>;
+const TrashIcon = (p) => <Icon {...p}><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></Icon>;
+const SettingsIcon = (p) => <Icon {...p}><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></Icon>;
+const AlertIcon = (p) => <Icon {...p}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></Icon>;
+
+/* ---------- data / constants ---------- */
+const SHIFT_CYCLE = ['', 'D', 'E', 'N', 'BE', 'OF', 'R'];
+
+const SHIFT_STYLE = {
+  D: 'bg-amber-100 text-amber-900 border border-amber-300',
+  E: 'bg-purple-200 text-purple-900 border border-purple-400',
+  N: 'bg-indigo-900 text-white border border-indigo-900',
+  BE: 'bg-cyan-100 text-cyan-900 border border-cyan-400',
+  OF: 'bg-red-500 text-white font-bold border border-red-600',
+  R: 'bg-gray-700 text-white font-bold border border-gray-800',
+  '': 'bg-white text-gray-300 border border-gray-200',
+};
+
+const SHIFT_LABEL = { D: 'D', E: 'E', N: 'N', BE: 'BE', OF: 'OFF', R: 'R', '': '' };
+const SHIFT_FULL = { D: '白班', E: '小夜班', N: '大夜班', BE: '行政班', OF: '休假', R: '預約假', '': '未排班' };
+
+const WORK_CODES = ['D', 'E', 'N', 'BE'];
+const MAX_CONSECUTIVE_NORMAL = 6;
+const MAX_CONSECUTIVE_FLEX = 12; // Article 30-1: up to 12 consecutive days allowed under the 4-week flexible system
+
+const W_LABEL = { W6: 'W6', W7: 'W7', W0: 'W0', '': '' };
+const W_FULL = { W6: '休息日', W7: '例假日', W0: '國定假日', '': '' };
+const W_CYCLE = ['', 'W6', 'W7', 'W0'];
+
+// Soft scheduling preferences ("盡量避免") — auto-schedule tries to stay under these,
+// but will exceed them rather than leave a shift short-staffed.
+const SIX_DAY_STREAK_SOFT_CAP = 2; // ≤2 six-consecutive-day runs per person per month
+const N_OFF_D_SOFT_CAP = 2; // ≤2 occurrences per person per month of N → single day off → D
+
+const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
+
+const DEFAULT_STAFF = [
+  { id: 's1', name: '王淑芬', primary: 'D', prevOff: 8, carryLabel: '2D' },
+  { id: 's2', name: '陳美玲', primary: 'D', prevOff: 9, carryLabel: '' },
+  { id: 's3', name: '林佳蓉', primary: 'D', prevOff: 8, carryLabel: '3D' },
+  { id: 's4', name: '張雅婷', primary: 'D', prevOff: 8, carryLabel: '1D' },
+  { id: 's5', name: '李思穎', primary: 'D', prevOff: 9, carryLabel: '' },
+  { id: 's6', name: '蕭雅筑', primary: 'D', prevOff: 8, carryLabel: '2D' },
+  { id: 's7', name: '洪詩涵', primary: 'D', prevOff: 8, carryLabel: '' },
+  { id: 's8', name: '賴亭妤', primary: 'D', prevOff: 9, carryLabel: '4D' },
+  { id: 's9', name: '周芷萱', primary: 'D', prevOff: 8, carryLabel: '1D' },
+  { id: 's10', name: '潘怡君', primary: 'D', prevOff: 8, carryLabel: '' },
+  { id: 's11', name: '黃靜怡', primary: 'E', prevOff: 8, carryLabel: '2E' },
+  { id: 's12', name: '吳姵蓉', primary: 'E', prevOff: 8, carryLabel: '' },
+  { id: 's13', name: '蔡宜臻', primary: 'E', prevOff: 9, carryLabel: '3E' },
+  { id: 's14', name: '許庭瑄', primary: 'E', prevOff: 8, carryLabel: '1E' },
+  { id: 's15', name: '曾語彤', primary: 'E', prevOff: 8, carryLabel: '' },
+  { id: 's16', name: '蘇珮如', primary: 'E', prevOff: 9, carryLabel: '2E' },
+  { id: 's17', name: '江欣妤', primary: 'E', prevOff: 8, carryLabel: '' },
+  { id: 's18', name: '鄭雅雯', primary: 'N', prevOff: 8, carryLabel: '1N' },
+  { id: 's19', name: '楊惠雯', primary: 'N', prevOff: 9, carryLabel: '' },
+  { id: 's20', name: '劉宣妤', primary: 'N', prevOff: 8, carryLabel: '3N' },
+  { id: 's21', name: '郭書瑜', primary: 'N', prevOff: 8, carryLabel: '' },
+  { id: 's22', name: '何思妤', primary: 'N', prevOff: 9, carryLabel: '2N' },
+];
+
+function buildDates(year, month) {
+  const start = new Date(year, month - 2, 21);
+  const end = new Date(year, month - 1, 20);
+  const dates = [];
+  const cur = new Date(start);
+  while (cur <= end) {
+    const weekday = cur.getDay();
+    dates.push({
+      key: `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`,
+      day: cur.getDate(),
+      monthLabel: cur.getMonth() + 1,
+      weekday,
+      isWeekend: weekday === 0 || weekday === 6,
+    });
+    cur.setDate(cur.getDate() + 1);
+  }
+  return dates;
+}
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+// ---- Supabase cloud sync config ----
+// URL is the project's base URL (no /rest/v1/ suffix — the supabase-js client adds that itself).
+const SUPABASE_URL = 'https://obzyyynyygtkvihxqkki.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_P5G56k12fYWXoWOzyme1Kg_eOYgapkv';
+const SUPABASE_TABLE = '班表';
+const SUPABASE_ROW_ID = 1; // the whole app state is stored as one JSON row
+const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+// ---- Site entry password ----
+// ⚠️ 這是「軟性」保護，不是真正的帳號驗證——密碼是寫在前端程式碼裡，懂得看網頁原始碼
+// 或開發者工具的人還是找得到。用途是擋掉不小心點進來的人、避免公開網址被隨意瀏覽，
+// 不是拿來保護高機密資料。請把下面這行改成你自己要用的密碼：
+const SITE_PASSWORD = '護理站2026';
+
+// cycleStartStr: 'YYYY-MM-DD' for the Monday that starts cycle #0.
+// Returns { cycleIndex, half (0 = first 2 weeks, 1 = second 2 weeks), mmdd: 'M/D' }
+function getCycleInfo(dateObj, cycleStartStr) {
+  const [cy, cm, cd] = cycleStartStr.split('-').map(Number);
+  const cycleStart = new Date(cy, cm - 1, cd);
+  const d = new Date(dateObj.key.split('-').map(Number)[0], dateObj.key.split('-').map(Number)[1] - 1, dateObj.key.split('-').map(Number)[2]);
+  const diffDays = Math.floor((d.getTime() - cycleStart.getTime()) / MS_PER_DAY);
+  const cycleIndex = Math.floor(diffDays / 28);
+  const dayInCycle = diffDays - cycleIndex * 28; // 0..27
+  const half = dayInCycle < 14 ? 0 : 1;
+  return { cycleIndex, half, mmdd: `${d.getMonth() + 1}/${d.getDate()}` };
+}
+
+// Monday-start week key (YYYY-M-D of that week's Monday), used for the "avoid D+E+N all in one week" soft rule.
+function weekKeyOf(dateObj) {
+  const [y, m, day] = dateObj.key.split('-').map(Number);
+  const dt = new Date(y, m - 1, day);
+  const mondayOffset = (dt.getDay() + 6) % 7; // days since the most recent Monday
+  dt.setDate(dt.getDate() - mondayOffset);
+  return `${dt.getFullYear()}-${dt.getMonth() + 1}-${dt.getDate()}`;
+}
+
+// Decodes a compact "上月末連續末班" label like "6E" (6 consecutive evening shifts),
+// "3E1N" (3 evening then 1 night, right up to the 21st), or "3OF" (3 rest days at the tail —
+// meaning the streak is broken, so 0 carried-over work days) into { days, lastShift }.
+function parseCarryLabel(label) {
+  if (!label) return { days: 0, lastShift: '' };
+  const segments = [];
+  const re = /(\d+)(OF|BE|D|E|N|R)/g;
+  let m;
+  while ((m = re.exec(label))) segments.push({ count: parseInt(m[1], 10), code: m[2] });
+  if (segments.length === 0) return { days: 0, lastShift: '' };
+  const last = segments[segments.length - 1];
+  if (last.code === 'OF' || last.code === 'R') return { days: 0, lastShift: '' };
+  const days = segments.reduce((sum, s) => sum + s.count, 0);
+  return { days, lastShift: last.code };
+}
+
+
+function ShiftScheduler() {
+  const [unlocked, setUnlocked] = useState(() => {
+    try { return localStorage.getItem('shiftScheduler_unlocked') === '1'; } catch (err) { return false; }
+  });
+  const [pwInput, setPwInput] = useState('');
+  const [pwError, setPwError] = useState(false);
+
+  const tryUnlock = () => {
+    if (pwInput === SITE_PASSWORD) {
+      setUnlocked(true);
+      setPwError(false);
+      try { localStorage.setItem('shiftScheduler_unlocked', '1'); } catch (err) { /* ignore */ }
+    } else {
+      setPwError(true);
+    }
+  };
+
+  const lockAgain = () => {
+    setUnlocked(false);
+    setPwInput('');
+    try { localStorage.removeItem('shiftScheduler_unlocked'); } catch (err) { /* ignore */ }
+  };
+
+  const [year, setYear] = useState(2026);
+  const [month, setMonth] = useState(8);
+  const [staffList, setStaffList] = useState(DEFAULT_STAFF);
+  const [schedule, setSchedule] = useState({});
+  const [minWorking, setMinWorking] = useState({ D: 7, E: 5, N: 4 });
+  const [nightSatMin, setNightSatMin] = useState(3);
+  const [targetOff, setTargetOff] = useState(8);
+  const [dragIndex, setDragIndex] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [transitionRules, setTransitionRules] = useState({ N_D: true, N_BE: true, N_E: true, E_D: true, E_BE: true });
+  const [editCell, setEditCell] = useState(null); // { staffId, dateKey }
+  const [editText, setEditText] = useState('');
+  const [flexEnabled, setFlexEnabled] = useState(false);
+  const [cycleStart, setCycleStart] = useState('2025-12-22'); // Monday that starts cycle #0
+  const [holidayDates, setHolidayDates] = useState(''); // e.g. "1/1,2/28" (M/D, comma separated)
+  const [wMarks, setWMarks] = useState({}); // { [staffId]: { [dateKey]: 'W6'|'W7'|'W0' } }
+  const [cloudStatus, setCloudStatus] = useState('idle'); // idle | loading | saving | saved | error
+  const [cloudLastSync, setCloudLastSync] = useState('');
+
+  const maxConsecutive = flexEnabled ? MAX_CONSECUTIVE_FLEX : MAX_CONSECUTIVE_NORMAL;
+
+  const dates = useMemo(() => buildDates(year, month), [year, month]);
+
+  const rosterSize = useMemo(() => {
+    const counts = { D: 0, E: 0, N: 0 };
+    staffList.forEach((s) => { if (counts[s.primary] !== undefined) counts[s.primary]++; });
+    return counts;
+  }, [staffList]);
+
+  const requiredFor = useCallback(
+    (shift, dateObj) => (shift === 'N' && dateObj.weekday === 6 ? nightSatMin : minWorking[shift]),
+    [minWorking, nightSatMin]
+  );
+
+  const getCell = useCallback(
+    (staffId, dateKey) => (schedule[staffId] && schedule[staffId][dateKey]) || '',
+    [schedule]
+  );
+
+  const cycleCell = (staffId, dateKey, event) => {
+    setSchedule((prev) => {
+      const staffRow = prev[staffId] || {};
+      if (event.shiftKey) {
+        const next = { ...staffRow };
+        delete next[dateKey];
+        return { ...prev, [staffId]: next };
+      }
+      const cur = staffRow[dateKey] || '';
+      const idx = SHIFT_CYCLE.indexOf(cur);
+      const nextVal = SHIFT_CYCLE[(idx + 1) % SHIFT_CYCLE.length];
+      return { ...prev, [staffId]: { ...staffRow, [dateKey]: nextVal } };
+    });
+  };
+
+  const normalizeCode = (text) => {
+    const t = text.trim().toUpperCase();
+    if (t === '') return '';
+    if (t === 'OFF' || t === 'OF') return 'OF';
+    if (['D', 'E', 'N', 'BE', 'R'].includes(t)) return t;
+    return null; // not a recognized code
+  };
+
+  const setCellValue = (staffId, dateKey, code) => {
+    setSchedule((prev) => {
+      const staffRow = prev[staffId] || {};
+      if (code === '') {
+        const next = { ...staffRow };
+        delete next[dateKey];
+        return { ...prev, [staffId]: next };
+      }
+      return { ...prev, [staffId]: { ...staffRow, [dateKey]: code } };
+    });
+  };
+
+  const startEdit = (staffId, dateKey) => {
+    setEditCell({ staffId, dateKey });
+    setEditText(SHIFT_LABEL[getCell(staffId, dateKey)] || '');
+  };
+
+  const cancelEdit = () => {
+    setEditCell(null);
+    setEditText('');
+  };
+
+  const commitEdit = (moveToNext) => {
+    if (!editCell) return;
+    const { staffId, dateKey } = editCell;
+    const code = normalizeCode(editText);
+    if (code !== null) setCellValue(staffId, dateKey, code);
+    if (moveToNext) {
+      const idx = dates.findIndex((d) => d.key === dateKey);
+      if (idx >= 0 && idx < dates.length - 1) {
+        const nextDate = dates[idx + 1];
+        setEditCell({ staffId, dateKey: nextDate.key });
+        setEditText(SHIFT_LABEL[getCell(staffId, nextDate.key)] || '');
+        return;
+      }
+    }
+    cancelEdit();
+  };
+
+  const countFor = useCallback(
+    (dateKey, code) => staffList.filter((s) => (schedule[s.id] && schedule[s.id][dateKey]) === code).length,
+    [staffList, schedule]
+  );
+
+  const shortages = useMemo(() => {
+    const list = [];
+    dates.forEach((d) => {
+      ['D', 'E', 'N'].forEach((shift) => {
+        const required = requiredFor(shift, d);
+        const count = countFor(d.key, shift);
+        if (count < required) {
+          list.push({ dateKey: d.key, label: `${d.monthLabel}/${d.day}(${WEEKDAY_LABELS[d.weekday]})`, shift, count, required });
+        }
+      });
+    });
+    return list;
+  }, [dates, countFor, requiredFor]);
+
+  const shortageSet = useMemo(() => {
+    const set = new Set();
+    shortages.forEach((s) => set.add(`${s.dateKey}__${s.shift}`));
+    return set;
+  }, [shortages]);
+
+  // Live check of the "no more than 6 consecutive working days" labor-law rule.
+  // Streak starts from each staff member's carried-over consecutive days from before the 21st.
+  const consecViolations = useMemo(() => {
+    const cellSet = new Set();
+    const summary = [];
+    staffList.forEach((s) => {
+      let streak = parseCarryLabel(s.carryLabel).days;
+      dates.forEach((d) => {
+        const val = getCell(s.id, d.key);
+        if (WORK_CODES.includes(val)) {
+          streak++;
+          if (streak > maxConsecutive) {
+            cellSet.add(`${s.id}__${d.key}`);
+            summary.push({
+              staffId: s.id,
+              name: s.name,
+              dateKey: d.key,
+              label: `${d.monthLabel}/${d.day}(${WEEKDAY_LABELS[d.weekday]})`,
+              streak,
+            });
+          }
+        } else {
+          streak = 0;
+        }
+      });
+    });
+    return { cellSet, summary };
+  }, [staffList, dates, getCell, maxConsecutive]);
+
+  // Rest-between-shifts rule: certain shift-type transitions don't allow enough turnaround time.
+  // Toggle these in 人力設定 if your ward's policy differs.
+  const isTransitionBlocked = useCallback(
+    (prevShift, nextShift) => {
+      if (prevShift === 'N' && nextShift === 'D' && transitionRules.N_D) return true;
+      if (prevShift === 'N' && nextShift === 'BE' && transitionRules.N_BE) return true;
+      if (prevShift === 'N' && nextShift === 'E' && transitionRules.N_E) return true;
+      if (prevShift === 'E' && nextShift === 'D' && transitionRules.E_D) return true;
+      if (prevShift === 'E' && nextShift === 'BE' && transitionRules.E_BE) return true;
+      return false;
+    },
+    [transitionRules]
+  );
+
+  // Live check of forbidden shift-type transitions (e.g. 大夜/小夜 cannot be directly followed by 白班/行政班).
+  // The chain starts from each staff member's last worked shift type before the 21st.
+  const transitionViolations = useMemo(() => {
+    const cellSet = new Set();
+    const summary = [];
+    staffList.forEach((s) => {
+      let prev = parseCarryLabel(s.carryLabel).lastShift;
+      dates.forEach((d) => {
+        const val = getCell(s.id, d.key);
+        if (val && isTransitionBlocked(prev, val)) {
+          cellSet.add(`${s.id}__${d.key}`);
+          summary.push({
+            staffId: s.id,
+            name: s.name,
+            dateKey: d.key,
+            label: `${d.monthLabel}/${d.day}(${WEEKDAY_LABELS[d.weekday]})`,
+            prev,
+            next: val,
+          });
+        }
+        prev = WORK_CODES.includes(val) ? val : '';
+      });
+    });
+    return { cellSet, summary };
+  }, [staffList, dates, getCell, isTransitionBlocked]);
+
+  const getW = useCallback(
+    (staffId, dateKey) => (wMarks[staffId] && wMarks[staffId][dateKey]) || '',
+    [wMarks]
+  );
+
+  const cycleCellW = (staffId, dateKey, event) => {
+    setWMarks((prev) => {
+      const row = prev[staffId] || {};
+      if (event.shiftKey) {
+        const next = { ...row };
+        delete next[dateKey];
+        return { ...prev, [staffId]: next };
+      }
+      const cur = row[dateKey] || '';
+      const idx = W_CYCLE.indexOf(cur);
+      const nextVal = W_CYCLE[(idx + 1) % W_CYCLE.length];
+      return { ...prev, [staffId]: { ...row, [dateKey]: nextVal } };
+    });
+  };
+
+  // Live compliance check for the 4-week flexible working hours system (勞基法第30-1條):
+  // each 2-week half needs ≥2 例假(W7), each 4-week cycle needs ≥4 休息日(W6) and ≤160 work hours.
+  // Only cycles that are fully contained in the currently-viewed date range are evaluated.
+  // Average 本月休假 per primary shift group, so it's easy to see whether groups are within
+  // the target gap (e.g. D group's average shouldn't run more than 1 day ahead of N group's).
+  const groupOffBalance = useMemo(() => {
+    const stats = { D: { total: 0, count: 0 }, E: { total: 0, count: 0 }, N: { total: 0, count: 0 } };
+    staffList.forEach((s) => {
+      if (!stats[s.primary]) return;
+      const off = dates.filter((d) => ['OF', 'R'].includes(getCell(s.id, d.key))).length;
+      stats[s.primary].total += off;
+      stats[s.primary].count += 1;
+    });
+    const averages = {};
+    ['D', 'E', 'N'].forEach((g) => { averages[g] = stats[g].count ? stats[g].total / stats[g].count : 0; });
+    const vals = Object.values(averages).filter((_, i) => ['D', 'E', 'N'][i] && stats[['D', 'E', 'N'][i]].count > 0);
+    const spread = vals.length ? Math.max(...vals) - Math.min(...vals) : 0;
+    return { averages, spread };
+  }, [staffList, dates, getCell]);
+
+  const flexCompliance = useMemo(() => {
+    if (!flexEnabled) return { issues: [] };
+    const issues = [];
+    const cycleMap = {};
+    dates.forEach((d) => {
+      const info = getCycleInfo(d, cycleStart);
+      if (!cycleMap[info.cycleIndex]) cycleMap[info.cycleIndex] = [];
+      cycleMap[info.cycleIndex].push({ ...d, half: info.half });
+    });
+    Object.keys(cycleMap).forEach((ci) => {
+      const cycleDates = cycleMap[ci];
+      if (cycleDates.length < 28) return; // partial cycle at the edge of the visible range — skip
+      const cycleLabel = `第${parseInt(ci, 10) + 1}期(${cycleDates[0].monthLabel}/${cycleDates[0].day}-${cycleDates[27].monthLabel}/${cycleDates[27].day})`;
+      staffList.forEach((s) => {
+        let w6 = 0, w7Half0 = 0, w7Half1 = 0, workDays = 0;
+        cycleDates.forEach((d) => {
+          const val = getCell(s.id, d.key);
+          const w = getW(s.id, d.key);
+          if (WORK_CODES.includes(val)) workDays++;
+          if (w === 'W6') w6++;
+          if (w === 'W7' && d.half === 0) w7Half0++;
+          if (w === 'W7' && d.half === 1) w7Half1++;
+        });
+        const hours = workDays * 8;
+        const problems = [];
+        if (w7Half0 < 2) problems.push(`前2週例假僅 ${w7Half0} 天(需≥2)`);
+        if (w7Half1 < 2) problems.push(`後2週例假僅 ${w7Half1} 天(需≥2)`);
+        if (w6 < 4) problems.push(`休息日僅 ${w6} 天(需≥4)`);
+        if (hours > 160) problems.push(`總工時 ${hours} 小時(上限160)`);
+        if (problems.length > 0) issues.push({ staffId: s.id, name: s.name, cycleLabel, problems });
+      });
+    });
+    return { issues };
+  }, [flexEnabled, dates, cycleStart, staffList, getCell, getW]);
+
+  // Reads backward from the last visible date to build this month's trailing-run label
+  // (e.g. "3E1N" or "3OF"), in the same compact notation used for 連續末班 — this is what
+  // becomes NEXT month's starting value once you move the year/month forward.
+  const computeCarryLabel = (staffId) => {
+    if (dates.length === 0) return '';
+    let i = dates.length - 1;
+    const lastVal = getCell(staffId, dates[i].key);
+    if (!WORK_CODES.includes(lastVal)) {
+      let offCount = 0;
+      let j = i;
+      while (j >= 0) {
+        const v = getCell(staffId, dates[j].key);
+        if (v === 'OF' || v === 'R') { offCount++; j--; } else break;
+      }
+      return offCount > 0 ? `${offCount}OF` : '';
+    }
+    const segments = [];
+    let j = i;
+    while (j >= 0) {
+      const v = getCell(staffId, dates[j].key);
+      if (!WORK_CODES.includes(v)) break;
+      if (segments.length > 0 && segments[segments.length - 1].code === v) segments[segments.length - 1].count++;
+      else segments.push({ code: v, count: 1 });
+      j--;
+    }
+    segments.reverse();
+    return segments.map((s) => `${s.count}${s.code}`).join('');
+  };
+
+  const applyCarryForNextMonth = () => {
+    setStaffList((prev) => prev.map((s) => ({ ...s, carryLabel: computeCarryLabel(s.id) })));
+    window.alert('已經用本月班表的最後幾天，更新每個人的「連續末班」欄位。切換到下個月的年/月之後就能直接接續排班了。');
+  };
+
+  const reorderStaff = (fromIdx, toIdx) => {
+    setStaffList((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  };
+
+  const addStaff = () => {
+    const id = 's' + Date.now();
+    setStaffList((prev) => [...prev, { id, name: '新進人員', primary: 'D', prevOff: 8, carryLabel: '' }]);
+  };
+
+  const removeStaff = (id) => {
+    setStaffList((prev) => prev.filter((s) => s.id !== id));
+    setSchedule((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setWMarks((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const updateStaff = (id, field, value) => {
+    setStaffList((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
+  };
+
+  const runAutoSchedule = () => {
+    const newSchedule = {};
+    staffList.forEach((s) => {
+      newSchedule[s.id] = {};
+      dates.forEach((d) => {
+        const existing = schedule[s.id] && schedule[s.id][d.key];
+        // OFF, R and BE are all user-committed and must never be overwritten by auto-scheduling.
+        if (existing === 'OF' || existing === 'R' || existing === 'BE') newSchedule[s.id][d.key] = existing;
+      });
+    });
+
+    const workCount = {};
+    const streak = {};
+    const prevShiftType = {};
+    const sixDayStreakCount = {}; // how many times each person has already hit a 6-day run this month
+    const sixCounted = {}; // whether the CURRENT run has already been counted (resets when streak breaks)
+    const weeklyTypes = {}; // { [staffId]: { [weekKey]: Set of shift types worked that week } }
+    const nOffDCount = {}; // how many times each person has already had N → single day off → D
+    staffList.forEach((s) => {
+      // Count pre-locked BE (admin) days as already-worked, so someone with several BE
+      // days manually assigned doesn't also get piled with extra D/E/N on top of that —
+      // this is what keeps everyone's total 本月休假 count fair, not just newly-assigned shifts.
+      const preLockedWorkDays = dates.filter((d) => newSchedule[s.id][d.key] === 'BE').length;
+      workCount[s.id] = preLockedWorkDays;
+      const parsedCarry = parseCarryLabel(s.carryLabel);
+      streak[s.id] = parsedCarry.days; // carried-over consecutive working days from before the 21st
+      prevShiftType[s.id] = parsedCarry.lastShift; // shift type they were last on before the 21st
+      sixDayStreakCount[s.id] = 0;
+      sixCounted[s.id] = streak[s.id] >= 6; // if they're already carrying a 6+ day streak in, don't re-count it here
+      weeklyTypes[s.id] = {};
+      nOffDCount[s.id] = 0;
+    });
+
+    const stillShort = [];
+
+    // Single chronological pass so the 6-consecutive-day limit and shift-transition rule can be enforced day by day.
+    dates.forEach((d, dIdx) => {
+      const dailyCounts = { D: 0, E: 0, N: 0 };
+      const wk = weekKeyOf(d);
+
+      // account for locked BE/OF/R cells already present for this date
+      staffList.forEach((s) => {
+        const v = newSchedule[s.id][d.key];
+        if (v === 'D' || v === 'E' || v === 'N') dailyCounts[v]++;
+      });
+
+      // Soft-preference penalty: candidates who would push past one of the "盡量避免" caps
+      // are ranked after everyone else, but are NOT excluded — they're still used if nobody
+      // else is eligible, so a shift never goes short just to protect these preferences.
+      const softPenalty = (s, shift) => {
+        let penalty = 0;
+        if (streak[s.id] + 1 === 6 && !sixCounted[s.id] && sixDayStreakCount[s.id] >= SIX_DAY_STREAK_SOFT_CAP) penalty++;
+        const typesThisWeek = weeklyTypes[s.id][wk] || new Set();
+        if (!typesThisWeek.has(shift) && typesThisWeek.size >= 2) penalty++;
+        if (shift === 'D' && dIdx >= 2) {
+          const prev1 = newSchedule[s.id][dates[dIdx - 1].key];
+          const prev2 = newSchedule[s.id][dates[dIdx - 2].key];
+          if (prev2 === 'N' && (prev1 === 'OF' || prev1 === 'R') && nOffDCount[s.id] >= N_OFF_D_SOFT_CAP) penalty++;
+        }
+        return penalty;
+      };
+
+      ['D', 'E', 'N'].forEach((shift) => {
+        const required = requiredFor(shift, d);
+        const eligible = (s) =>
+          newSchedule[s.id][d.key] === undefined &&
+          streak[s.id] < maxConsecutive &&
+          !isTransitionBlocked(prevShiftType[s.id], shift);
+        // Single pool, sorted by whoever has worked the fewest days so far across the WHOLE
+        // roster (not just within their own primary group) — this is what keeps each shift
+        // group's average off-day count close to the others, instead of primary-group members
+        // always absorbing their own shift's load while other groups sit on spare capacity.
+        // Soft-preference penalty comes first (push down candidates who'd exceed a "盡量避免"
+        // cap), then fairness, then primary-affinity as the final tie-breaker.
+        const candidates = staffList.filter(eligible).sort((a, b) => {
+          const aPen = softPenalty(a, shift);
+          const bPen = softPenalty(b, shift);
+          if (aPen !== bPen) return aPen - bPen;
+          if (workCount[a.id] !== workCount[b.id]) return workCount[a.id] - workCount[b.id];
+          const aPrimary = a.primary === shift ? 0 : 1;
+          const bPrimary = b.primary === shift ? 0 : 1;
+          return aPrimary - bPrimary;
+        });
+        for (const c of candidates) {
+          if (dailyCounts[shift] >= required) break;
+          newSchedule[c.id][d.key] = shift;
+          dailyCounts[shift]++;
+          workCount[c.id]++;
+          // track weekly shift-type mix
+          if (!weeklyTypes[c.id][wk]) weeklyTypes[c.id][wk] = new Set();
+          weeklyTypes[c.id][wk].add(shift);
+          // track N → single day off → D occurrences
+          if (shift === 'D' && dIdx >= 2) {
+            const prev1 = newSchedule[c.id][dates[dIdx - 1].key];
+            const prev2 = newSchedule[c.id][dates[dIdx - 2].key];
+            if (prev2 === 'N' && (prev1 === 'OF' || prev1 === 'R')) nOffDCount[c.id]++;
+          }
+        }
+        if (dailyCounts[shift] < required) {
+          stillShort.push(`${d.monthLabel}/${d.day}(${WEEKDAY_LABELS[d.weekday]}) ${SHIFT_FULL[shift]}：${dailyCounts[shift]}/${required} 人`);
+        }
+      });
+
+      // anyone left unassigned today is OFF
+      staffList.forEach((s) => {
+        if (newSchedule[s.id][d.key] === undefined) newSchedule[s.id][d.key] = 'OF';
+      });
+
+      // update streaks, last-shift-type, and the six-day-streak counter for tomorrow
+      staffList.forEach((s) => {
+        const v = newSchedule[s.id][d.key];
+        if (WORK_CODES.includes(v)) {
+          streak[s.id] = streak[s.id] + 1;
+          if (streak[s.id] === 6 && !sixCounted[s.id]) {
+            sixDayStreakCount[s.id]++;
+            sixCounted[s.id] = true;
+          }
+        } else {
+          streak[s.id] = 0;
+          sixCounted[s.id] = false;
+        }
+        prevShiftType[s.id] = WORK_CODES.includes(v) ? v : '';
+      });
+    });
+
+    // Auto-tag W6(休息日)/W7(例假日)/W0(國定假日) per 4-week compliance cycle, if enabled.
+    let newWMarksByStaff = null;
+    if (flexEnabled) {
+      newWMarksByStaff = {};
+      staffList.forEach((s) => { newWMarksByStaff[s.id] = {}; });
+      const holidaySet = new Set(holidayDates.split(',').map((t) => t.trim()).filter(Boolean));
+      const cycleMap = {};
+      dates.forEach((d) => {
+        const info = getCycleInfo(d, cycleStart);
+        if (!cycleMap[info.cycleIndex]) cycleMap[info.cycleIndex] = [];
+        cycleMap[info.cycleIndex].push({ ...d, half: info.half, mmdd: info.mmdd });
+      });
+      Object.values(cycleMap).forEach((cycleDates) => {
+        staffList.forEach((s) => {
+          const offDays = cycleDates.filter((d) => ['OF', 'R'].includes(newSchedule[s.id][d.key]));
+          const remaining = [];
+          offDays.forEach((d) => {
+            if (holidaySet.has(d.mmdd)) newWMarksByStaff[s.id][d.key] = 'W0';
+            else remaining.push(d);
+          });
+          const half0 = remaining.filter((d) => d.half === 0);
+          const half1 = remaining.filter((d) => d.half === 1);
+          const usedKeys = new Set();
+          half0.slice(0, 2).forEach((d) => { newWMarksByStaff[s.id][d.key] = 'W7'; usedKeys.add(d.key); });
+          half1.slice(0, 2).forEach((d) => { newWMarksByStaff[s.id][d.key] = 'W7'; usedKeys.add(d.key); });
+          remaining.filter((d) => !usedKeys.has(d.key)).slice(0, 4).forEach((d) => { newWMarksByStaff[s.id][d.key] = 'W6'; });
+        });
+      });
+    }
+
+    setSchedule(newSchedule);
+    if (newWMarksByStaff) {
+      setWMarks((prev) => {
+        const merged = { ...prev };
+        staffList.forEach((s) => {
+          const row = { ...(merged[s.id] || {}) };
+          dates.forEach((d) => { delete row[d.key]; });
+          merged[s.id] = { ...row, ...newWMarksByStaff[s.id] };
+        });
+        return merged;
+      });
+    }
+    if (stillShort.length > 0) {
+      window.alert(
+        `⚠ 人力不足提醒，以下班別排班後仍未達最低上班人力（可能是連續上班已達 ${maxConsecutive} 天上限，或班別轉換限制所致，暫不可再排班）：\n\n` +
+          stillShort.join('\n')
+      );
+    }
+  };
+
+  const exportPDF = () => {
+    window.print();
+  };
+
+  const buildStatePayload = () => ({
+    __app: 'hospital_shift_scheduler',
+    __version: 1,
+    year, month, staffList, schedule, minWorking, nightSatMin, targetOff,
+    transitionRules, flexEnabled, cycleStart, holidayDates, wMarks,
+  });
+
+  const applyState = (state) => {
+    if (state.year !== undefined) setYear(state.year);
+    if (state.month !== undefined) setMonth(state.month);
+    if (state.staffList !== undefined) {
+      // migrate older exports that used separate carry(number)+lastShift(type) fields
+      const migrated = state.staffList.map((s) => {
+        if (s.carryLabel !== undefined) return s;
+        const carry = s.carry || 0;
+        const lastShift = s.lastShift || '';
+        return { ...s, carryLabel: carry > 0 ? `${carry}${lastShift || 'D'}` : '' };
+      });
+      setStaffList(migrated);
+    }
+    if (state.schedule !== undefined) setSchedule(state.schedule);
+    if (state.minWorking !== undefined) setMinWorking(state.minWorking);
+    if (state.nightSatMin !== undefined) setNightSatMin(state.nightSatMin);
+    if (state.targetOff !== undefined) setTargetOff(state.targetOff);
+    if (state.transitionRules !== undefined) setTransitionRules(state.transitionRules);
+    if (state.flexEnabled !== undefined) setFlexEnabled(state.flexEnabled);
+    if (state.cycleStart !== undefined) setCycleStart(state.cycleStart);
+    if (state.holidayDates !== undefined) setHolidayDates(state.holidayDates);
+    if (state.wMarks !== undefined) setWMarks(state.wMarks);
+  };
+
+  const exportJSON = () => {
+    const state = buildStatePayload();
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `排班系統資料_${year}${String(month).padStart(2, '0')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importFileRef = React.useRef(null);
+
+  const importJSON = (file) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const state = JSON.parse(e.target.result);
+        if (state.__app !== 'hospital_shift_scheduler') {
+          window.alert('這個檔案看起來不是本系統匯出的資料檔，已取消匯入。');
+          return;
+        }
+        applyState(state);
+        window.alert('匯入成功！');
+      } catch (err) {
+        window.alert('匯入失敗，檔案格式不正確：' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const saveToCloud = async () => {
+    if (!supabaseClient) { window.alert('Supabase SDK 尚未載入，請確認網路連線後重新整理頁面再試一次。'); return; }
+    setCloudStatus('saving');
+    try {
+      const payload = buildStatePayload();
+      const { error } = await supabaseClient
+        .from(SUPABASE_TABLE)
+        .upsert({ id: SUPABASE_ROW_ID, data: payload, updated_at: new Date().toISOString() });
+      if (error) throw new Error(error.message);
+      setCloudStatus('saved');
+      setCloudLastSync(new Date().toLocaleString('zh-TW'));
+    } catch (err) {
+      setCloudStatus('error');
+      window.alert('儲存到雲端失敗：' + err.message + '\n\n請確認 Supabase 資料表「' + SUPABASE_TABLE + '」存在，且已設定允許 anon 金鑰讀寫的 RLS 權限。');
+    }
+  };
+
+  const loadFromCloud = async (silent) => {
+    if (!supabaseClient) { if (!silent) window.alert('Supabase SDK 尚未載入，請確認網路連線後重新整理頁面再試一次。'); return; }
+    setCloudStatus('loading');
+    try {
+      const { data, error } = await supabaseClient
+        .from(SUPABASE_TABLE)
+        .select('data')
+        .eq('id', SUPABASE_ROW_ID)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      const state = data && data.data;
+      if (state && state.__app === 'hospital_shift_scheduler') {
+        applyState(state);
+        setCloudStatus('saved');
+        setCloudLastSync(new Date().toLocaleString('zh-TW'));
+      } else {
+        setCloudStatus('idle');
+        if (!silent) window.alert('雲端目前還沒有資料，先按「上傳到雲端」把目前的班表存上去。');
+      }
+    } catch (err) {
+      setCloudStatus('error');
+      if (!silent) window.alert('從雲端載入失敗：' + err.message);
+    }
+  };
+
+  // Auto-load once when the page opens, so every device shows the latest saved schedule.
+  React.useEffect(() => {
+    loadFromCloud(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const exportData = () => {
+    const header = ['姓名', '主要班別', '連續末班', ...dates.map((d) => `${d.monthLabel}/${d.day}(${WEEKDAY_LABELS[d.weekday]})`), '本月休假', '上月休假', '假日休假'];
+    const rows = [];
+    staffList.forEach((s) => {
+      const cells = dates.map((d) => SHIFT_LABEL[getCell(s.id, d.key)] || '');
+      const offCount = dates.filter((d) => ['OF', 'R'].includes(getCell(s.id, d.key))).length;
+      const weekendOff = dates.filter((d) => d.isWeekend && ['OF', 'R'].includes(getCell(s.id, d.key))).length;
+      rows.push([s.name, SHIFT_FULL[s.primary], s.carryLabel || '', ...cells, offCount, s.prevOff, weekendOff]);
+      if (flexEnabled) {
+        const wCells = dates.map((d) => W_LABEL[getW(s.id, d.key)] || '');
+        rows.push([`${s.name}（四週工時）`, '', '', ...wCells, '', '', '']);
+      }
+    });
+    const dRow = ['D 班合計', '', '', ...dates.map((d) => countFor(d.key, 'D')), '', '', ''];
+    const eRow = ['E 班合計', '', '', ...dates.map((d) => countFor(d.key, 'E')), '', '', ''];
+    const nRow = ['N 班合計', '', '', ...dates.map((d) => countFor(d.key, 'N')), '', '', ''];
+    const csvRows = [header, ...rows, dRow, eRow, nRow];
+    const csv = csvRows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `排班表_${year}${String(month).padStart(2, '0')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (!unlocked) {
+    return (
+      <div className="w-full min-h-screen bg-gray-900 flex items-center justify-center px-4">
+        <div className="bg-white rounded-xl shadow-lg p-8 w-full" style={{ maxWidth: '360px' }}>
+          <h1 className="text-lg font-bold text-gray-800 text-center mb-1">病房排班自動化系統</h1>
+          <p className="text-xs text-gray-400 text-center mb-6">請輸入通行密碼以繼續</p>
+          <input
+            type="password"
+            value={pwInput}
+            onChange={(e) => { setPwInput(e.target.value); setPwError(false); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') tryUnlock(); }}
+            autoFocus
+            placeholder="密碼"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none mb-2"
+            style={{ borderColor: pwError ? '#dc2626' : undefined }}
+          />
+          {pwError && <p className="text-xs text-red-600 mb-2">密碼不正確，請再試一次</p>}
+          <button onClick={tryUnlock}
+                  className="w-full bg-gray-900 hover:bg-gray-800 text-white rounded-lg py-2 text-sm font-bold">
+            進入系統
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full min-h-screen bg-gray-50 text-gray-800">
+      <div className="bg-gray-900 text-white px-6 py-4">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-xl font-bold tracking-wide">病房排班自動化系統</h1>
+            <p className="text-gray-400 text-sm mt-0.5">週期：{month === 1 ? 12 : month - 1} 月 21 日 — {month} 月 20 日</p>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5 bg-gray-800 rounded-lg px-3 py-1.5">
+              <span className="text-gray-400 text-xs">年</span>
+              <input type="number" value={year} onChange={(e) => setYear(parseInt(e.target.value, 10) || year)}
+                     className="w-16 bg-transparent outline-none text-sm font-medium" />
+              <span className="text-gray-400 text-xs ml-1">月</span>
+              <input type="number" min={1} max={12} value={month}
+                     onChange={(e) => { const v = parseInt(e.target.value, 10); if (v >= 1 && v <= 12) setMonth(v); }}
+                     className="w-12 bg-transparent outline-none text-sm font-medium" />
+            </div>
+            <button onClick={() => setShowSettings((v) => !v)}
+                    className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg px-3 py-2 text-sm font-medium">
+              <SettingsIcon size={16} /> 人力設定
+            </button>
+            <button onClick={runAutoSchedule}
+                    className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold"
+                    style={{ backgroundColor: '#f59e0b', color: '#111827' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fbbf24'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f59e0b'; }}>
+              <PlayIcon size={16} /> 一鍵自動排班
+            </button>
+            <button onClick={exportPDF}
+                    className="flex items-center gap-1.5 bg-indigo-700 hover:bg-indigo-600 text-white rounded-lg px-4 py-2 text-sm font-bold">
+              <PrinterIcon size={16} /> 匯出 PDF
+            </button>
+            <button onClick={exportData}
+                    className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-500 text-white rounded-lg px-4 py-2 text-sm font-bold">
+              <DownloadIcon size={16} /> 匯出資料
+            </button>
+            <button onClick={exportJSON}
+                    className="flex items-center gap-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg px-4 py-2 text-sm font-bold"
+                    title="把所有資料（員工、班表、設定）存成 JSON 檔，可帶到其他裝置匯入">
+              <DownloadIcon size={16} /> 匯出 JSON
+            </button>
+            <button onClick={() => importFileRef.current && importFileRef.current.click()}
+                    className="flex items-center gap-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg px-4 py-2 text-sm font-bold"
+                    title="讀入先前匯出的 JSON 檔，還原所有資料">
+              <UploadIcon size={16} /> 匯入 JSON
+            </button>
+            <input ref={importFileRef} type="file" accept="application/json" style={{ display: 'none' }}
+                   onChange={(e) => { if (e.target.files && e.target.files[0]) { importJSON(e.target.files[0]); e.target.value = ''; } }} />
+            <button onClick={lockAgain}
+                    className="flex items-center gap-1.5 bg-gray-800 hover:bg-red-600 text-white rounded-lg px-3 py-2 text-sm font-bold"
+                    title="重新鎖定，回到密碼輸入畫面">
+              🔒
+            </button>
+          </div>
+        </div>
+      </div>
+      <div className="h-1.5 w-full" style={{ background: 'linear-gradient(to right, #fbbf24, #a855f7, #312e81)' }}></div>
+
+      {showSettings && (
+        <div className="bg-white border-b border-gray-200 px-6 py-4 flex flex-wrap items-end gap-6">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-semibold text-amber-700">白班 (D)</span>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-gray-400">排班人力</span>
+              <span className="w-10 text-center font-semibold text-gray-600">{rosterSize.D}</span>
+              <span className="text-gray-400 ml-2">上班人力</span>
+              <input type="number" value={minWorking.D}
+                     onChange={(e) => setMinWorking((b) => ({ ...b, D: parseInt(e.target.value, 10) || 0 }))}
+                     className="w-14 border border-gray-300 rounded px-2 py-1" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-semibold text-purple-700">小夜班 (E)</span>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-gray-400">排班人力</span>
+              <span className="w-10 text-center font-semibold text-gray-600">{rosterSize.E}</span>
+              <span className="text-gray-400 ml-2">上班人力</span>
+              <input type="number" value={minWorking.E}
+                     onChange={(e) => setMinWorking((b) => ({ ...b, E: parseInt(e.target.value, 10) || 0 }))}
+                     className="w-14 border border-gray-300 rounded px-2 py-1" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-semibold text-indigo-900">大夜班 (N)</span>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-gray-400">排班人力</span>
+              <span className="w-10 text-center font-semibold text-gray-600">{rosterSize.N}</span>
+              <span className="text-gray-400 ml-2">上班人力</span>
+              <input type="number" value={minWorking.N}
+                     onChange={(e) => setMinWorking((b) => ({ ...b, N: parseInt(e.target.value, 10) || 0 }))}
+                     className="w-14 border border-gray-300 rounded px-2 py-1" />
+              <span className="text-gray-400 ml-2">週六上班人力</span>
+              <input type="number" value={nightSatMin}
+                     onChange={(e) => setNightSatMin(parseInt(e.target.value, 10) || 0)}
+                     className="w-14 border border-gray-300 rounded px-2 py-1" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-semibold text-gray-700">目標休假天數 / 月</span>
+            <input type="number" value={targetOff}
+                   onChange={(e) => setTargetOff(parseInt(e.target.value, 10) || 0)}
+                   className="w-14 border border-gray-300 rounded px-2 py-1 text-sm" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-semibold text-pink-700">班別轉換限制（休息時間不足）</span>
+            <div className="flex items-center gap-3 text-xs">
+              <label className="flex items-center gap-1">
+                <input type="checkbox" checked={transitionRules.N_D}
+                       onChange={(e) => setTransitionRules((r) => ({ ...r, N_D: e.target.checked }))} />
+                大夜(N)後不可接白班(D)
+              </label>
+              <label className="flex items-center gap-1">
+                <input type="checkbox" checked={transitionRules.N_BE}
+                       onChange={(e) => setTransitionRules((r) => ({ ...r, N_BE: e.target.checked }))} />
+                大夜(N)後不可接行政班(BE)
+              </label>
+              <label className="flex items-center gap-1">
+                <input type="checkbox" checked={transitionRules.N_E}
+                       onChange={(e) => setTransitionRules((r) => ({ ...r, N_E: e.target.checked }))} />
+                大夜(N)後不可接小夜(E)
+              </label>
+              <label className="flex items-center gap-1">
+                <input type="checkbox" checked={transitionRules.E_D}
+                       onChange={(e) => setTransitionRules((r) => ({ ...r, E_D: e.target.checked }))} />
+                小夜(E)後不可接白班(D)
+              </label>
+              <label className="flex items-center gap-1">
+                <input type="checkbox" checked={transitionRules.E_BE}
+                       onChange={(e) => setTransitionRules((r) => ({ ...r, E_BE: e.target.checked }))} />
+                小夜(E)後不可接行政班(BE)
+              </label>
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700">
+              <input type="checkbox" checked={flexEnabled} onChange={(e) => setFlexEnabled(e.target.checked)} />
+              啟用四週變形工時（2週2例・4週4休・4週160工時・不連續工作超過12天）
+            </label>
+            {flexEnabled && (
+              <div className="flex items-center gap-3 text-xs mt-1">
+                <span className="text-gray-400">週期起始日(週一)</span>
+                <input type="date" value={cycleStart} onChange={(e) => setCycleStart(e.target.value)}
+                       className="border border-gray-300 rounded px-2 py-1" />
+                <span className="text-gray-400 ml-2">國定假日(M/D，逗號分隔)</span>
+                <input type="text" value={holidayDates} onChange={(e) => setHolidayDates(e.target.value)} placeholder="1/1,2/28"
+                       className="border border-gray-300 rounded px-2 py-1 w-40" />
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col gap-1 basis-full">
+            <span className="text-xs font-semibold text-green-700">☁ 雲端同步（Supabase，跨裝置共用資料）</span>
+            <div className="flex items-center gap-2 text-xs mt-1 flex-wrap">
+              <button onClick={saveToCloud} disabled={cloudStatus === 'saving' || cloudStatus === 'loading'}
+                      className="bg-green-600 hover:bg-green-500 text-white rounded px-3 py-1.5 font-medium disabled:opacity-50">
+                {cloudStatus === 'saving' ? '上傳中…' : '⬆ 上傳到雲端'}
+              </button>
+              <button onClick={() => loadFromCloud(false)} disabled={cloudStatus === 'saving' || cloudStatus === 'loading'}
+                      className="bg-gray-700 hover:bg-gray-600 text-white rounded px-3 py-1.5 font-medium disabled:opacity-50">
+                {cloudStatus === 'loading' ? '載入中…' : '⬇ 從雲端載入'}
+              </button>
+              <span style={{ color: cloudStatus === 'error' ? '#dc2626' : '#16a34a' }}>
+                {cloudStatus === 'saved' && cloudLastSync ? `已同步：${cloudLastSync}` : cloudStatus === 'error' ? '同步失敗，請查看下方設定說明' : ''}
+              </span>
+            </div>
+          </div>
+          <button onClick={applyCarryForNextMonth}
+                  className="flex items-center gap-1.5 bg-teal-700 hover:bg-teal-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium h-9"
+                  title="用本月班表最後幾天，自動算出並填入每個人的「連續末班」欄位，供切換到下個月接續使用">
+            🔄 以本月班表更新連續末班
+          </button>
+          <button onClick={addStaff}
+                  className="flex items-center gap-1.5 ml-auto bg-gray-800 hover:bg-gray-700 text-white rounded-lg px-3 py-1.5 text-sm font-medium h-9">
+            <PlusIcon size={16} /> 新增人員
+          </button>
+        </div>
+      )}
+
+      {shortages.length > 0 && (
+        <div className="bg-red-50 border-b border-red-200 px-6 py-2 flex items-start gap-2 text-sm text-red-700">
+          <AlertIcon size={16} />
+          <div className="flex flex-wrap gap-x-3 gap-y-1">
+            <span className="font-semibold">人力不足：</span>
+            {shortages.map((s) => (
+              <span key={`${s.dateKey}-${s.shift}`} className="bg-red-100 border border-red-300 rounded px-1.5 py-0.5">
+                {s.label} {SHIFT_FULL[s.shift]} {s.count}/{s.required}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {consecViolations.summary.length > 0 && (
+        <div className="bg-purple-50 border-b border-purple-200 px-6 py-2 flex items-start gap-2 text-sm text-purple-700">
+          <AlertIcon size={16} />
+          <div className="flex flex-wrap gap-x-3 gap-y-1">
+            <span className="font-semibold">連續上班超過 {maxConsecutive} 天（勞基法）：</span>
+            {consecViolations.summary.map((v) => (
+              <span key={`${v.staffId}-${v.dateKey}`} className="bg-purple-100 border border-purple-300 rounded px-1.5 py-0.5">
+                {v.name} {v.label} 已連續上班 {v.streak} 天
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {transitionViolations.summary.length > 0 && (
+        <div className="bg-pink-50 border-b border-pink-200 px-6 py-2 flex items-start gap-2 text-sm text-pink-700">
+          <AlertIcon size={16} />
+          <div className="flex flex-wrap gap-x-3 gap-y-1">
+            <span className="font-semibold">班別轉換休息時間不足：</span>
+            {transitionViolations.summary.map((v) => (
+              <span key={`${v.staffId}-${v.dateKey}`} className="bg-pink-100 border border-pink-300 rounded px-1.5 py-0.5">
+                {v.name} {v.label} {SHIFT_FULL[v.prev]}接{SHIFT_FULL[v.next]}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {flexCompliance.issues.length > 0 && (
+        <div className="bg-indigo-50 border-b border-indigo-200 px-6 py-2 flex items-start gap-2 text-sm text-indigo-700">
+          <AlertIcon size={16} />
+          <div className="flex flex-wrap gap-x-3 gap-y-1">
+            <span className="font-semibold">四週變形工時不合規：</span>
+            {flexCompliance.issues.map((v) => (
+              <span key={`${v.staffId}-${v.cycleLabel}`} className="bg-indigo-100 border border-indigo-300 rounded px-1.5 py-0.5">
+                {v.name} {v.cycleLabel}：{v.problems.join('、')}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="px-6 py-2 flex flex-wrap items-center gap-4 text-xs bg-white border-b border-gray-200">
+        {['D', 'E', 'N', 'BE', 'OF', 'R'].map((code) => (
+          <div key={code} className="flex items-center gap-1.5">
+            <span className={`w-8 h-5 rounded flex items-center justify-center text-xs ${SHIFT_STYLE[code]}`} style={{ fontSize: '10px' }}>
+              {SHIFT_LABEL[code]}
+            </span>
+            <span className="text-gray-500">{SHIFT_FULL[code]}{code === 'BE' ? '（不計入人力）' : ''}</span>
+          </div>
+        ))}
+        <div className="flex items-center gap-2 border-l border-gray-200 pl-4"
+             style={{ color: groupOffBalance.spread > 1 ? '#dc2626' : '#16a34a' }}>
+          <span className="font-semibold">各班平均休假：</span>
+          <span>D {groupOffBalance.averages.D.toFixed(1)}</span>
+          <span>E {groupOffBalance.averages.E.toFixed(1)}</span>
+          <span>N {groupOffBalance.averages.N.toFixed(1)}</span>
+          <span>（差距 {groupOffBalance.spread.toFixed(1)} 天{groupOffBalance.spread > 1 ? ' ⚠' : ''}）</span>
+        </div>
+        <span className="text-gray-400 ml-auto">單擊切換班別・雙擊或直接打字輸入（D/E/N/BE/OFF/R，Enter 送出並跳下一天）・按住 Shift 點擊可清空・OFF／R／BE 一經輸入，自動排班不會覆蓋・自動排班遵守連續上班 ≤{maxConsecutive} 天與班別轉換限制{flexEnabled ? '（已啟用四週變形工時，下方「四週工時」列可點擊標記 W6／W7／W0）' : ''}・拖曳 ⠿ 可調整排序</span>
+      </div>
+
+      <div className="p-4">
+        <div className="overflow-x-auto border border-gray-200 rounded-lg bg-white">
+          <table className="border-collapse text-sm" style={{ minWidth: 'max-content' }}>
+            <thead>
+              <tr>
+                <th className="sticky left-0 bg-gray-100 border border-gray-200 px-3 py-2 text-left" style={{ zIndex: 20, width: '2rem' }}></th>
+                <th className="sticky bg-gray-100 border border-gray-200 px-3 py-2 text-left" style={{ zIndex: 20, left: '2rem', minWidth: '110px' }}>姓名</th>
+                <th className="bg-gray-100 border border-gray-200 px-2 py-2" style={{ minWidth: '60px' }}>主班</th>
+                <th className="bg-gray-100 border border-gray-200 px-2 py-2" style={{ minWidth: '80px' }}
+                    title="上一張班表最後幾天的連續班別，例如「3E1N」＝連續3天小夜、再1天大夜，接續到21號；「3OF」＝最後3天休假（無連續上班）；空白＝無資料">
+                  連續末班
+                </th>
+                {dates.map((d) => {
+                  const cycleStyle = flexEnabled
+                    ? (() => {
+                        const info = getCycleInfo(d, cycleStart);
+                        const parity = ((info.cycleIndex % 2) + 2) % 2;
+                        if (parity === 0) return info.half === 0 ? { background: '#bfdbfe' } : { background: '#1e3a8a', color: '#fff' };
+                        return info.half === 0 ? { background: '#fed7aa' } : { background: '#c2410c', color: '#fff' };
+                      })()
+                    : {};
+                  return (
+                    <th key={d.key} className={`border border-gray-200 px-1 py-1 text-center ${!flexEnabled && d.isWeekend ? 'bg-gray-200' : !flexEnabled ? 'bg-gray-100' : ''}`} style={{ minWidth: '38px', ...cycleStyle }}>
+                      <div className="font-semibold">{d.day}</div>
+                      <div style={{ fontSize: '10px', opacity: 0.8 }}>{WEEKDAY_LABELS[d.weekday]}</div>
+                    </th>
+                  );
+                })}
+                <th className="bg-gray-100 border border-gray-200 px-2 py-2" style={{ minWidth: '70px' }}>本月休假</th>
+                <th className="bg-gray-100 border border-gray-200 px-2 py-2" style={{ minWidth: '70px' }}>上月休假</th>
+                <th className="bg-gray-100 border border-gray-200 px-2 py-2" style={{ minWidth: '70px' }}>假日休假</th>
+                <th className="bg-gray-100 border border-gray-200 px-2 py-2" style={{ minWidth: '40px' }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {staffList.map((s, idx) => {
+                const currentOff = dates.filter((d) => ['OF', 'R'].includes(getCell(s.id, d.key))).length;
+                const weekendOff = dates.filter((d) => d.isWeekend && ['OF', 'R'].includes(getCell(s.id, d.key))).length;
+                return (
+                  <React.Fragment key={s.id}>
+                  <tr style={{ opacity: dragIndex === idx ? 0.4 : 1 }}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => { if (dragIndex !== null && dragIndex !== idx) reorderStaff(dragIndex, idx); setDragIndex(null); }}>
+                    <td className="sticky left-0 bg-white border border-gray-200 px-2 py-1 text-center text-gray-400" style={{ zIndex: 10, cursor: 'grab' }}
+                        draggable onDragStart={() => setDragIndex(idx)}>
+                      <GripIcon size={14} style={{ display: 'inline' }} />
+                    </td>
+                    <td className="sticky bg-white border border-gray-200 px-2 py-1" style={{ zIndex: 10, left: '2rem' }}>
+                      <input value={s.name} onChange={(e) => updateStaff(s.id, 'name', e.target.value)}
+                             className="w-full bg-transparent outline-none font-medium text-sm" />
+                    </td>
+                    <td className="border border-gray-200 px-1 py-1 text-center">
+                      <select value={s.primary} onChange={(e) => updateStaff(s.id, 'primary', e.target.value)} className="bg-transparent text-xs outline-none">
+                        <option value="D">D</option>
+                        <option value="E">E</option>
+                        <option value="N">N</option>
+                      </select>
+                    </td>
+                    <td className="border border-gray-200 px-1 py-1 text-center">
+                      <input type="text" value={s.carryLabel} onChange={(e) => updateStaff(s.id, 'carryLabel', e.target.value.toUpperCase())}
+                             placeholder="例：3E1N"
+                             className="text-center bg-transparent outline-none" style={{ width: '4.5rem' }}
+                             title={(() => {
+                               const p = parseCarryLabel(s.carryLabel);
+                               return p.days > 0 ? `解讀為：連續上班 ${p.days} 天，最後為 ${SHIFT_FULL[p.lastShift]}` : '解讀為：無連續上班（休假中或無資料）';
+                             })()} />
+                    </td>
+                    {dates.map((d) => {
+                      const val = getCell(s.id, d.key);
+                      const isEditing = editCell && editCell.staffId === s.id && editCell.dateKey === d.key;
+                      const short = val && shortageSet.has(`${d.key}__${val}`);
+                      const violatedConsec = consecViolations.cellSet.has(`${s.id}__${d.key}`);
+                      const violatedTrans = transitionViolations.cellSet.has(`${s.id}__${d.key}`);
+                      const shadows = [];
+                      if (violatedConsec) shadows.push('inset 0 0 0 2px #9333ea');
+                      if (violatedTrans) shadows.push('inset 0 0 0 2px #db2777');
+                      if (short) shadows.push('inset 0 0 0 2px #f97316');
+                      const invalidEdit = isEditing && normalizeCode(editText) === null;
+                      return (
+                        <td key={d.key} className={`border border-gray-200 p-0 ${d.isWeekend ? 'bg-gray-50' : ''}`}>
+                          {isEditing ? (
+                            <input
+                              autoFocus
+                              value={editText}
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => setEditText(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === 'Tab') {
+                                  if (normalizeCode(editText) !== null) { e.preventDefault(); commitEdit(true); }
+                                } else if (e.key === 'Escape') {
+                                  e.preventDefault();
+                                  cancelEdit();
+                                }
+                              }}
+                              onBlur={() => commitEdit(false)}
+                              className="w-full text-center text-xs outline-none"
+                              style={{ height: '2.25rem', border: invalidEdit ? '2px solid #ef4444' : '2px solid #2563eb' }}
+                            />
+                          ) : (
+                            <button onClick={(e) => cycleCell(s.id, d.key, e)}
+                                    onDoubleClick={() => startEdit(s.id, d.key)}
+                                    title={`${SHIFT_FULL[val] || '未排班'}${violatedConsec ? '（已連續上班超過 ' + maxConsecutive + ' 天）' : ''}${violatedTrans ? '（班別轉換休息時間不足）' : ''} － 雙擊可直接輸入`}
+                                    className={`w-full flex items-center justify-center text-xs ${SHIFT_STYLE[val]}`}
+                                    style={{ height: '2.25rem', boxShadow: shadows.length ? shadows.join(', ') : 'none' }}>
+                              {SHIFT_LABEL[val]}
+                            </button>
+                          )}
+                        </td>
+                      );
+                    })}
+                    <td className="border border-gray-200 px-2 py-1 text-center font-semibold" style={{ color: currentOff < targetOff ? '#ea580c' : undefined }}>
+                      {currentOff}
+                    </td>
+                    <td className="border border-gray-200 px-1 py-1 text-center">
+                      <input type="number" value={s.prevOff} onChange={(e) => updateStaff(s.id, 'prevOff', parseInt(e.target.value, 10) || 0)}
+                             className="text-center bg-transparent outline-none" style={{ width: '3rem' }} />
+                    </td>
+                    <td className="border border-gray-200 px-2 py-1 text-center font-semibold">{weekendOff}</td>
+                    <td className="border border-gray-200 px-1 py-1 text-center">
+                      <button onClick={() => removeStaff(s.id)} className="text-gray-300 hover:text-red-500">
+                        <TrashIcon size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                  {flexEnabled && (
+                    <tr>
+                      <td className="sticky left-0 bg-gray-50 border border-gray-200" style={{ zIndex: 10 }}></td>
+                      <td className="sticky bg-gray-50 border border-gray-200 px-2 py-0.5 text-right text-gray-400" style={{ zIndex: 10, left: '2rem', fontSize: '10px' }}>四週工時</td>
+                      <td className="border border-gray-200 bg-gray-50"></td>
+                      <td className="border border-gray-200 bg-gray-50"></td>
+                      {dates.map((d) => {
+                        const w = getW(s.id, d.key);
+                        const wColor = w === 'W7' ? '#dc2626' : w === 'W6' ? '#2563eb' : w === 'W0' ? '#16a34a' : '#9ca3af';
+                        return (
+                          <td key={d.key} className="border border-gray-200 p-0">
+                            <button onClick={(e) => cycleCellW(s.id, d.key, e)}
+                                    title={W_FULL[w] || '（點擊標記 W6／W7／W0）'}
+                                    className="w-full flex items-center justify-center font-bold hover:bg-gray-100"
+                                    style={{ height: '1.4rem', fontSize: '10px', color: wColor }}>
+                              {W_LABEL[w]}
+                            </button>
+                          </td>
+                        );
+                      })}
+                      <td className="border border-gray-200 bg-gray-50" colSpan={4}></td>
+                    </tr>
+                  )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              {['D', 'E', 'N'].map((shift) => (
+                <tr key={shift}>
+                  <td className="sticky left-0 bg-gray-100 border border-gray-200" style={{ zIndex: 10 }}></td>
+                  <td className={`sticky border border-gray-200 px-2 py-1 text-xs font-bold ${shift === 'D' ? 'bg-amber-50 text-amber-800' : shift === 'E' ? 'bg-purple-50 text-purple-800' : 'bg-indigo-50 text-indigo-900'}`}
+                      style={{ zIndex: 10, left: '2rem' }}>
+                    {SHIFT_FULL[shift]}人力
+                  </td>
+                  <td className="border border-gray-200 bg-gray-50"></td>
+                  <td className="border border-gray-200 bg-gray-50"></td>
+                  {dates.map((d) => {
+                    const c = countFor(d.key, shift);
+                    const required = requiredFor(shift, d);
+                    const met = c >= required;
+                    return (
+                      <td key={d.key} title={`最低上班人力 ${required} 人`}
+                          className={`border border-gray-200 text-center text-xs font-bold py-1 ${met ? 'bg-gray-50 text-gray-700' : 'bg-red-400 text-white animate-pulse-custom'}`}>
+                        {c}/{required}
+                      </td>
+                    );
+                  })}
+                  <td className="border border-gray-200 bg-gray-50" colSpan={4}></td>
+                </tr>
+              ))}
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      {/* Print-only view — mirrors the reference PDF: title line, day/weekday header,
+          one row per staff with shift codes + monthly OFF count, D/E/N totals at the bottom. */}
+      <div className="print-only">
+        <div style={{ fontWeight: 'bold', fontSize: '13px', marginBottom: '3px' }}>
+          {year}年{String(month).padStart(2, '0')}月班表　OF day：___{targetOff}__天
+        </div>
+        <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '7.5px', tableLayout: 'fixed' }}>
+          <thead>
+            <tr>
+              <th style={{ border: '1px solid #000', padding: '1px 2px', width: '32px' }}>姓名</th>
+              <th style={{ border: '1px solid #000', padding: '1px 2px', width: '24px' }}>連續末班</th>
+              {dates.map((d) => (
+                <th key={d.key} style={{ border: '1px solid #000', padding: '1px 0' }}>{d.day}</th>
+              ))}
+              <th style={{ border: '1px solid #000', padding: '1px 2px', width: '22px' }}>本月<br />OFF天數</th>
+            </tr>
+            <tr>
+              <th style={{ border: '1px solid #000', padding: '1px 2px' }}></th>
+              <th style={{ border: '1px solid #000', padding: '1px 2px' }}></th>
+              {dates.map((d) => (
+                <th key={d.key} style={{ border: '1px solid #000', padding: '1px 0' }}>{WEEKDAY_LABELS[d.weekday]}</th>
+              ))}
+              <th style={{ border: '1px solid #000', padding: '1px 2px' }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {staffList.map((s) => {
+              const off = dates.filter((d) => ['OF', 'R'].includes(getCell(s.id, d.key))).length;
+              return (
+                <tr key={s.id}>
+                  <td style={{ border: '1px solid #000', padding: '1px 2px', whiteSpace: 'nowrap' }}>{s.name}</td>
+                  <td style={{ border: '1px solid #000', padding: '1px 2px', textAlign: 'center' }}>{s.carryLabel}</td>
+                  {dates.map((d) => (
+                    <td key={d.key} style={{ border: '1px solid #000', padding: '1px 0', textAlign: 'center' }}>
+                      {SHIFT_LABEL[getCell(s.id, d.key)]}
+                    </td>
+                  ))}
+                  <td style={{ border: '1px solid #000', padding: '1px 2px', textAlign: 'center' }}>{off}</td>
+                </tr>
+              );
+            })}
+            {['D', 'E', 'N'].map((shift) => (
+              <tr key={shift}>
+                <td style={{ border: '1px solid #000', padding: '1px 2px', fontWeight: 'bold' }}>{shift}</td>
+                <td style={{ border: '1px solid #000', padding: '1px 2px' }}></td>
+                {dates.map((d) => (
+                  <td key={d.key} style={{ border: '1px solid #000', padding: '1px 0', textAlign: 'center' }}>
+                    {countFor(d.key, shift)}
+                  </td>
+                ))}
+                <td style={{ border: '1px solid #000', padding: '1px 2px' }}></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<ShiftScheduler />);
+</script>
+</body>
+</html>
