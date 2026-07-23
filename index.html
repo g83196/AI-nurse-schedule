@@ -136,7 +136,7 @@ const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_U
 // ⚠️ 這是「軟性」保護，不是真正的帳號驗證——密碼是寫在前端程式碼裡，懂得看網頁原始碼
 // 或開發者工具的人還是找得到。用途是擋掉不小心點進來的人、避免公開網址被隨意瀏覽，
 // 不是拿來保護高機密資料。請把下面這行改成你自己要用的密碼：
-const SITE_PASSWORD = '護理站2026';
+const SITE_PASSWORD = '123456';
 
 // cycleStartStr: 'YYYY-MM-DD' for the Monday that starts cycle #0.
 // Returns { cycleIndex, half (0 = first 2 weeks, 1 = second 2 weeks), mmdd: 'M/D' }
