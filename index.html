@@ -79,28 +79,30 @@ const N_OFF_D_SOFT_CAP = 2; // ≤2 occurrences per person per month of N → si
 const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
 
 const DEFAULT_STAFF = [
-  { id: 's1', name: '王淑芬', primary: 'D', prevOff: 8, carryLabel: '2D' },
-  { id: 's2', name: '陳美玲', primary: 'D', prevOff: 9, carryLabel: '' },
-  { id: 's3', name: '林佳蓉', primary: 'D', prevOff: 8, carryLabel: '3D' },
-  { id: 's4', name: '張雅婷', primary: 'D', prevOff: 8, carryLabel: '1D' },
-  { id: 's5', name: '李思穎', primary: 'D', prevOff: 9, carryLabel: '' },
-  { id: 's6', name: '蕭雅筑', primary: 'D', prevOff: 8, carryLabel: '2D' },
-  { id: 's7', name: '洪詩涵', primary: 'D', prevOff: 8, carryLabel: '' },
-  { id: 's8', name: '賴亭妤', primary: 'D', prevOff: 9, carryLabel: '4D' },
-  { id: 's9', name: '周芷萱', primary: 'D', prevOff: 8, carryLabel: '1D' },
-  { id: 's10', name: '潘怡君', primary: 'D', prevOff: 8, carryLabel: '' },
-  { id: 's11', name: '黃靜怡', primary: 'E', prevOff: 8, carryLabel: '2E' },
-  { id: 's12', name: '吳姵蓉', primary: 'E', prevOff: 8, carryLabel: '' },
-  { id: 's13', name: '蔡宜臻', primary: 'E', prevOff: 9, carryLabel: '3E' },
-  { id: 's14', name: '許庭瑄', primary: 'E', prevOff: 8, carryLabel: '1E' },
-  { id: 's15', name: '曾語彤', primary: 'E', prevOff: 8, carryLabel: '' },
-  { id: 's16', name: '蘇珮如', primary: 'E', prevOff: 9, carryLabel: '2E' },
-  { id: 's17', name: '江欣妤', primary: 'E', prevOff: 8, carryLabel: '' },
-  { id: 's18', name: '鄭雅雯', primary: 'N', prevOff: 8, carryLabel: '1N' },
-  { id: 's19', name: '楊惠雯', primary: 'N', prevOff: 9, carryLabel: '' },
-  { id: 's20', name: '劉宣妤', primary: 'N', prevOff: 8, carryLabel: '3N' },
-  { id: 's21', name: '郭書瑜', primary: 'N', prevOff: 8, carryLabel: '' },
-  { id: 's22', name: '何思妤', primary: 'N', prevOff: 9, carryLabel: '2N' },
+  { id: 's1', name: '蘇妍寧', primary: 'D', prevOff: 8, carryLabel: '6E' },
+  { id: 's2', name: '陳晏寧', primary: 'D', prevOff: 8, carryLabel: '2D' },
+  { id: 's3', name: '姜佳妗', primary: 'D', prevOff: 8, carryLabel: '1OF' },
+  { id: 's4', name: '魏汝容', primary: 'D', prevOff: 8, carryLabel: '2D' },
+  { id: 's5', name: '陳毓婷', primary: 'D', prevOff: 8, carryLabel: '1OF' },
+  { id: 's6', name: '陳惠卿', primary: 'D', prevOff: 8, carryLabel: '3OF' },
+  { id: 's7', name: '歐怡岑', primary: 'D', prevOff: 8, carryLabel: '1D' },
+  { id: 's8', name: '張睿予', primary: 'D', prevOff: 8, carryLabel: '3E1N' },
+  { id: 's9', name: '李昀庭', primary: 'D', prevOff: 8, carryLabel: '4OF' },
+  { id: 's10', name: '蕭愷毅', primary: 'E', prevOff: 8, carryLabel: '3D' },
+  { id: 's11', name: '張淑娟', primary: 'E', prevOff: 8, carryLabel: '5E' },
+  { id: 's12', name: '盧琇鈴', primary: 'E', prevOff: 8, carryLabel: '3OF' },
+  { id: 's13', name: '許淑惠', primary: 'E', prevOff: 8, carryLabel: '3E' },
+  { id: 's14', name: '彭詩琦', primary: 'E', prevOff: 8, carryLabel: '6E' },
+  { id: 's15', name: '林家卉', primary: 'E', prevOff: 8, carryLabel: '1E' },
+  { id: 's16', name: '謝閩心', primary: 'E', prevOff: 8, carryLabel: '1OF' },
+  { id: 's17', name: '蔡千如', primary: 'E', prevOff: 8, carryLabel: '1D' },
+  { id: 's18', name: '許靖婕', primary: 'N', prevOff: 8, carryLabel: '5N' },
+  { id: 's19', name: '黃彥毓', primary: 'N', prevOff: 8, carryLabel: '1OF' },
+  { id: 's20', name: '陳勃翔', primary: 'N', prevOff: 8, carryLabel: '4D' },
+  { id: 's21', name: '高卉袀', primary: 'N', prevOff: 8, carryLabel: '4N' },
+  { id: 's22', name: '劉瑞雯', primary: 'N', prevOff: 8, carryLabel: '2N' },
+  { id: 's23', name: '莊婷雅', primary: 'N', prevOff: 8, carryLabel: '5D' },
+  { id: 's24', name: '蘇育榕', primary: 'D', prevOff: 8, carryLabel: '' },
 ];
 
 function buildDates(year, month) {
@@ -207,6 +209,7 @@ function ShiftScheduler() {
   const [minWorking, setMinWorking] = useState({ D: 7, E: 5, N: 4 });
   const [nightSatMin, setNightSatMin] = useState(3);
   const [targetOff, setTargetOff] = useState(8);
+  const [crossSupportGap, setCrossSupportGap] = useState(2); // days of workload gap needed before cross-shift-type support kicks in
   const [dragIndex, setDragIndex] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [transitionRules, setTransitionRules] = useState({ N_D: true, N_BE: true, N_E: true, E_D: true, E_BE: true });
@@ -542,8 +545,9 @@ function ShiftScheduler() {
       newSchedule[s.id] = {};
       dates.forEach((d) => {
         const existing = schedule[s.id] && schedule[s.id][d.key];
-        // OFF, R and BE are all user-committed and must never be overwritten by auto-scheduling.
-        if (existing === 'OF' || existing === 'R' || existing === 'BE') newSchedule[s.id][d.key] = existing;
+        // Any manually-entered value — D/E/N/BE/OF/R — is user-committed and must never be
+        // overwritten by auto-scheduling. Only genuinely blank cells are up for assignment.
+        if (existing) newSchedule[s.id][d.key] = existing;
       });
     });
 
@@ -555,10 +559,10 @@ function ShiftScheduler() {
     const weeklyTypes = {}; // { [staffId]: { [weekKey]: Set of shift types worked that week } }
     const nOffDCount = {}; // how many times each person has already had N → single day off → D
     staffList.forEach((s) => {
-      // Count pre-locked BE (admin) days as already-worked, so someone with several BE
-      // days manually assigned doesn't also get piled with extra D/E/N on top of that —
-      // this is what keeps everyone's total 本月休假 count fair, not just newly-assigned shifts.
-      const preLockedWorkDays = dates.filter((d) => newSchedule[s.id][d.key] === 'BE').length;
+      // Count pre-locked work days (D/E/N/BE — anything the user already typed in) as already-worked,
+      // so someone with several shifts manually assigned doesn't also get piled with extra shifts on
+      // top of that — this is what keeps everyone's total 本月休假 count fair, not just new assignments.
+      const preLockedWorkDays = dates.filter((d) => WORK_CODES.includes(newSchedule[s.id][d.key])).length;
       workCount[s.id] = preLockedWorkDays;
       const parsedCarry = parseCarryLabel(s.carryLabel);
       streak[s.id] = parsedCarry.days; // carried-over consecutive working days from before the 21st
@@ -604,16 +608,27 @@ function ShiftScheduler() {
           newSchedule[s.id][d.key] === undefined &&
           streak[s.id] < maxConsecutive &&
           !isTransitionBlocked(prevShiftType[s.id], shift);
-        // Single pool, sorted by whoever has worked the fewest days so far across the WHOLE
-        // roster (not just within their own primary group) — this is what keeps each shift
-        // group's average off-day count close to the others, instead of primary-group members
-        // always absorbing their own shift's load while other groups sit on spare capacity.
-        // Soft-preference penalty comes first (push down candidates who'd exceed a "盡量避免"
-        // cap), then fairness, then primary-affinity as the final tie-breaker.
+        // Single pool across the whole roster (not just each shift's own primary group), so a
+        // shift never goes unfilled just because its own group is short that day. But to avoid
+        // people bouncing between D/E/N constantly ("跳班"), candidates who are on a FAMILIAR
+        // shift today (their primary type, or whatever they worked yesterday) are preferred —
+        // a cross-group candidate only jumps ahead once the fairness gap is real (≥ CROSS_SUPPORT_GAP
+        // days), not for every one-day tie-break. Soft-preference penalties are checked first.
         const candidates = staffList.filter(eligible).sort((a, b) => {
           const aPen = softPenalty(a, shift);
           const bPen = softPenalty(b, shift);
           if (aPen !== bPen) return aPen - bPen;
+
+          const aFamiliar = a.primary === shift || prevShiftType[a.id] === shift;
+          const bFamiliar = b.primary === shift || prevShiftType[b.id] === shift;
+          if (aFamiliar !== bFamiliar) {
+            const familiarWork = aFamiliar ? workCount[a.id] : workCount[b.id];
+            const crossWork = aFamiliar ? workCount[b.id] : workCount[a.id];
+            const familiarIsMuchBusier = familiarWork - crossWork > crossSupportGap;
+            if (familiarIsMuchBusier) return aFamiliar ? 1 : -1; // let the cross-group candidate go first
+            return aFamiliar ? -1 : 1; // otherwise keep the familiar candidate on their usual shift
+          }
+
           if (workCount[a.id] !== workCount[b.id]) return workCount[a.id] - workCount[b.id];
           const aPrimary = a.primary === shift ? 0 : 1;
           const bPrimary = b.primary === shift ? 0 : 1;
@@ -718,7 +733,7 @@ function ShiftScheduler() {
   const buildStatePayload = () => ({
     __app: 'hospital_shift_scheduler',
     __version: 1,
-    year, month, staffList, schedule, minWorking, nightSatMin, targetOff,
+    year, month, staffList, schedule, minWorking, nightSatMin, targetOff, crossSupportGap,
     transitionRules, flexEnabled, cycleStart, holidayDates, wMarks,
   });
 
@@ -739,6 +754,7 @@ function ShiftScheduler() {
     if (state.minWorking !== undefined) setMinWorking(state.minWorking);
     if (state.nightSatMin !== undefined) setNightSatMin(state.nightSatMin);
     if (state.targetOff !== undefined) setTargetOff(state.targetOff);
+    if (state.crossSupportGap !== undefined) setCrossSupportGap(state.crossSupportGap);
     if (state.transitionRules !== undefined) setTransitionRules(state.transitionRules);
     if (state.flexEnabled !== undefined) setFlexEnabled(state.flexEnabled);
     if (state.cycleStart !== undefined) setCycleStart(state.cycleStart);
@@ -983,6 +999,14 @@ function ShiftScheduler() {
                    className="w-14 border border-gray-300 rounded px-2 py-1 text-sm" />
           </div>
           <div className="flex flex-col gap-1">
+            <span className="text-xs font-semibold text-gray-700" title="數字越大，越少發生跨班別支援（人員較不會跳班，但各班休假天數差距可能拉大）；數字越小，休假越容易打平，但人員在 D/E/N 之間切換會變頻繁">
+              跨班支援門檻（天）
+            </span>
+            <input type="number" min={0} value={crossSupportGap}
+                   onChange={(e) => setCrossSupportGap(parseInt(e.target.value, 10) || 0)}
+                   className="w-14 border border-gray-300 rounded px-2 py-1 text-sm" />
+          </div>
+          <div className="flex flex-col gap-1">
             <span className="text-xs font-semibold text-pink-700">班別轉換限制（休息時間不足）</span>
             <div className="flex items-center gap-3 text-xs">
               <label className="flex items-center gap-1">
@@ -1121,15 +1145,14 @@ function ShiftScheduler() {
             <span className="text-gray-500">{SHIFT_FULL[code]}{code === 'BE' ? '（不計入人力）' : ''}</span>
           </div>
         ))}
-        <div className="flex items-center gap-2 border-l border-gray-200 pl-4"
-             style={{ color: groupOffBalance.spread > 1 ? '#dc2626' : '#16a34a' }}>
+        <div className="flex items-center gap-2 border-l border-gray-200 pl-4 text-gray-500">
           <span className="font-semibold">各班平均休假：</span>
           <span>D {groupOffBalance.averages.D.toFixed(1)}</span>
           <span>E {groupOffBalance.averages.E.toFixed(1)}</span>
           <span>N {groupOffBalance.averages.N.toFixed(1)}</span>
-          <span>（差距 {groupOffBalance.spread.toFixed(1)} 天{groupOffBalance.spread > 1 ? ' ⚠' : ''}）</span>
+          <span>（差距 {groupOffBalance.spread.toFixed(1)} 天）</span>
         </div>
-        <span className="text-gray-400 ml-auto">單擊切換班別・雙擊或直接打字輸入（D/E/N/BE/OFF/R，Enter 送出並跳下一天）・按住 Shift 點擊可清空・OFF／R／BE 一經輸入，自動排班不會覆蓋・自動排班遵守連續上班 ≤{maxConsecutive} 天與班別轉換限制{flexEnabled ? '（已啟用四週變形工時，下方「四週工時」列可點擊標記 W6／W7／W0）' : ''}・拖曳 ⠿ 可調整排序</span>
+        <span className="text-gray-400 ml-auto">單擊切換班別・雙擊或直接打字輸入（D/E/N/BE/OFF/R，Enter 送出並跳下一天）・按住 Shift 點擊可清空・任何已手動輸入的班別，自動排班不會覆蓋・自動排班遵守連續上班 ≤{maxConsecutive} 天與班別轉換限制{flexEnabled ? '（已啟用四週變形工時，下方「四週工時」列可點擊標記 W6／W7／W0）' : ''}・拖曳 ⠿ 可調整排序</span>
       </div>
 
       <div className="p-4">
